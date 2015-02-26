@@ -63,6 +63,7 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.pgm.internal.CLIText;
 import org.eclipse.jgit.pgm.opt.PathTreeFilterHandler;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -81,8 +82,7 @@ class Show extends TextBuiltin {
 
 	private final DateFormat fmt;
 
-	private final DiffFormatter diffFmt = new DiffFormatter( //
-			new BufferedOutputStream(System.out));
+	private DiffFormatter diffFmt;
 
 	@Argument(index = 0, metaVar = "metaVar_object")
 	private String objectName;
@@ -165,6 +165,12 @@ class Show extends TextBuiltin {
 		fmt = new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy ZZZZZ", Locale.US); //$NON-NLS-1$
 	}
 
+	@Override
+	protected void init(final Repository repository, final String gitDir) {
+		super.init(repository, gitDir);
+		diffFmt = new DiffFormatter(new BufferedOutputStream(outs));
+	}
+
 	@SuppressWarnings("boxing")
 	@Override
 	protected void run() throws Exception {
@@ -207,8 +213,9 @@ class Show extends TextBuiltin {
 					break;
 
 				case Constants.OBJ_BLOB:
-					db.open(obj, obj.getType()).copyTo(System.out);
-					outw.flush();
+					outw.flush(); // flush high-level buffer before writing directly to low-level stream
+					db.open(obj, obj.getType()).copyTo(outs);  // no need to buffer
+					outs.flush();
 					break;
 
 				default:
